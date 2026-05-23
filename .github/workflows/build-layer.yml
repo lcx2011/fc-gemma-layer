@@ -7,58 +7,44 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04   # 关键：glibc 2.31，与 FC 一致
-    
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/pypa/manylinux_2_28_x86_64  # glibc 2.28，兼容 FC 的 2.31
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
-    - name: Setup Python 3.12
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-    
-    - name: Install build tools (for llama-cpp-python compilation)
+
+    - name: Create layer output directory
+      run: mkdir -p /github/workspace/layer/python/lib/python3.12/site-packages
+
+    - name: Install dependencies into layer
       run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake build-essential
-    
-    - name: Create layer directory structure
-      run: |
-        mkdir -p layer/python/lib/python3.12/site-packages
-    
-    - name: Install dependencies to layer
-      run: |
-        pip install \
-          -i https://mirrors.aliyun.com/pypi/simple/ \
-          --target layer/python/lib/python3.12/site-packages \
+        # 使用 manylinux 镜像自带的 Python 3.12
+        /opt/python/cp312-cp312/bin/pip install \
+          --target /github/workspace/layer/python/lib/python3.12/site-packages \
           numpy==2.4.6 \
           diskcache==5.6.3 \
           jinja2==3.1.6 \
-          MarkupSafe==3.0.3
-
-        # 直接安装 llama-cpp-python，不指定平台，让 pip 在 glibc 2.31 环境下自动处理
-        pip install \
-          --target layer/python/lib/python3.12/site-packages \
+          MarkupSafe==3.0.3 \
           llama-cpp-python==0.3.23
-    
+
     - name: Clean unnecessary files
       run: |
-        cd layer/python/lib/python3.12/site-packages
+        cd /github/workspace/layer/python/lib/python3.12/site-packages
         find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
         find . -type f -name "*.pyc" -delete 2>/dev/null || true
         find . -type f -name "*.pyo" -delete 2>/dev/null || true
         find . -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true
         find . -type d -name "test" -exec rm -rf {} + 2>/dev/null || true
         find . -type d -name "docs" -exec rm -rf {} + 2>/dev/null || true
-    
+
     - name: Package layer
       run: |
-        cd layer
-        zip -r ../layer.zip python/
-        cd ..
-        ls -lh layer.zip
-    
+        cd /github/workspace/layer
+        zip -r /github/workspace/layer.zip python/
+        ls -lh /github/workspace/layer.zip
+
     - name: Upload layer artifact
       uses: actions/upload-artifact@v4
       with:
