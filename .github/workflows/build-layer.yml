@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04   # 关键：glibc 2.31，与 FC 一致
     
     steps:
     - name: Checkout code
@@ -18,11 +18,16 @@ jobs:
       with:
         python-version: '3.12'
     
+    - name: Install build tools (for llama-cpp-python compilation)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential
+    
     - name: Create layer directory structure
       run: |
         mkdir -p layer/python/lib/python3.12/site-packages
     
-    - name: Install general dependencies to layer
+    - name: Install dependencies to layer
       run: |
         pip install \
           -i https://mirrors.aliyun.com/pypi/simple/ \
@@ -32,16 +37,10 @@ jobs:
           jinja2==3.1.6 \
           MarkupSafe==3.0.3
 
-    - name: Build llama-cpp-python in manylinux_2_31 container
-      run: |
-        docker run --rm \
-          -v ${{ github.workspace }}/layer/python/lib/python3.12/site-packages:/output \
-          quay.io/pypa/manylinux_2_31_x86_64 \
-          bash -c "
-            /opt/python/cp312-cp312/bin/pip install \
-              --target /output \
-              llama-cpp-python==0.3.23
-          "
+        # 直接安装 llama-cpp-python，不指定平台，让 pip 在 glibc 2.31 环境下自动处理
+        pip install \
+          --target layer/python/lib/python3.12/site-packages \
+          llama-cpp-python==0.3.23
     
     - name: Clean unnecessary files
       run: |
@@ -60,7 +59,6 @@ jobs:
         cd ..
         ls -lh layer.zip
     
-    # 只保留Artifact，删除Release步骤
     - name: Upload layer artifact
       uses: actions/upload-artifact@v4
       with:
