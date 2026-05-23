@@ -24,17 +24,15 @@ jobs:
     
     - name: Install dependencies to layer
       run: |
-        # 先安装所有依赖（会用最新 manylinux 标签）
         pip install \
           -i https://mirrors.aliyun.com/pypi/simple/ \
           --target layer/python/lib/python3.12/site-packages \
-          llama-cpp-python==0.3.23 \
+          llama-cpp-python==0.3.0 \
           numpy==2.4.6 \
           diskcache==5.6.3 \
           jinja2==3.1.6 \
           MarkupSafe==3.0.3
 
-        # 强制重装 llama-cpp-python 为 manylinux_2_28 版本（不下载依赖）
         pip install \
           --target layer/python/lib/python3.12/site-packages \
           --force-reinstall \
@@ -45,7 +43,7 @@ jobs:
           --implementation cp \
           --abi cp312 \
           -i https://pypi.org/simple/ \
-          llama-cpp-python==0.3.23
+          llama-cpp-python==0.3.0
     
     - name: Clean unnecessary files
       run: |
