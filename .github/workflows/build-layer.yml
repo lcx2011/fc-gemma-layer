@@ -22,9 +22,8 @@ jobs:
       run: |
         mkdir -p layer/python/lib/python3.12/site-packages
     
-    - name: Install dependencies to layer
+    - name: Install general dependencies to layer
       run: |
-        # 先安装其他依赖
         pip install \
           -i https://mirrors.aliyun.com/pypi/simple/ \
           --target layer/python/lib/python3.12/site-packages \
@@ -33,18 +32,16 @@ jobs:
           jinja2==3.1.6 \
           MarkupSafe==3.0.3
 
-        # 强制安装 manylinux_2_31 版本（不指定版本号，让 pip 选最新兼容版）
-        pip install \
-          --target layer/python/lib/python3.12/site-packages \
-          --force-reinstall \
-          --no-deps \
-          --only-binary=:all: \
-          --platform manylinux_2_31_x86_64 \
-          --python-version 312 \
-          --implementation cp \
-          --abi cp312 \
-          -i https://pypi.org/simple/ \
-          llama-cpp-python
+    - name: Build llama-cpp-python in manylinux_2_31 container
+      run: |
+        docker run --rm \
+          -v ${{ github.workspace }}/layer/python/lib/python3.12/site-packages:/output \
+          quay.io/pypa/manylinux_2_31_x86_64 \
+          bash -c "
+            /opt/python/cp312-cp312/bin/pip install \
+              --target /output \
+              llama-cpp-python==0.3.23
+          "
     
     - name: Clean unnecessary files
       run: |
