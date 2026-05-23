@@ -1,0 +1,76 @@
+name: Build FC Layer for Gemma
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Create layer directory structure
+      run: |
+        mkdir -p layer/python/lib/python3.12/site-packages
+    
+    - name: Install dependencies to layer
+      run: |
+        pip install \
+          -i https://mirrors.aliyun.com/pypi/simple/ \
+          --target layer/python/lib/python3.12/site-packages \
+          llama-cpp-python==0.3.23 \
+          numpy==2.4.6 \
+          diskcache==5.6.3 \
+          jinja2==3.1.6 \
+          MarkupSafe==3.0.3
+    
+    - name: Clean unnecessary files
+      run: |
+        cd layer/python/lib/python3.12/site-packages
+        # 删除 __pycache__ 和 .pyc 文件
+        find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+        find . -type f -name "*.pyc" -delete 2>/dev/null || true
+        find . -type f -name "*.pyo" -delete 2>/dev/null || true
+        
+        # 删除测试和文档
+        find . -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true
+        find . -type d -name "test" -exec rm -rf {} + 2>/dev/null || true
+        find . -type d -name "docs" -exec rm -rf {} + 2>/dev/null || true
+        
+        # 删除 .dist-info 目录中的非必要文件
+        find . -type d -name "*.dist-info" -exec sh -c 'cd {} && rm -f RECORD INSTALLER' \; 2>/dev/null || true
+    
+    - name: Package layer
+      run: |
+        cd layer
+        zip -r ../layer.zip python/
+        cd ..
+        ls -lh layer.zip
+    
+    - name: Upload layer artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: fc-gemma-layer
+        path: layer.zip
+        retention-days: 7  # 保留7天
+    
+    - name: Create Release (optional)
+      if: github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: layer-${{ github.run_number }}
+        name: Layer Build ${{ github.run_number }}
+        files: layer.zip
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
