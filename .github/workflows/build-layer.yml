@@ -16,12 +16,12 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Create layer output directory
-      run: mkdir -p /github/workspace/layer/python/lib/python3.12/site-packages
+      run: mkdir -p $GITHUB_WORKSPACE/layer/python/lib/python3.12/site-packages
 
     - name: Install dependencies into layer
       run: |
         /opt/python/cp312-cp312/bin/pip install \
-          --target /github/workspace/layer/python/lib/python3.12/site-packages \
+          --target $GITHUB_WORKSPACE/layer/python/lib/python3.12/site-packages \
           numpy==2.4.6 \
           diskcache==5.6.3 \
           jinja2==3.1.6 \
@@ -30,7 +30,7 @@ jobs:
 
     - name: Clean unnecessary files
       run: |
-        cd /github/workspace/layer/python/lib/python3.12/site-packages
+        cd $GITHUB_WORKSPACE/layer/python/lib/python3.12/site-packages
         find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
         find . -type f -name "*.pyc" -delete 2>/dev/null || true
         find . -type f -name "*.pyo" -delete 2>/dev/null || true
@@ -38,23 +38,22 @@ jobs:
         find . -type d -name "test" -exec rm -rf {} + 2>/dev/null || true
         find . -type d -name "docs" -exec rm -rf {} + 2>/dev/null || true
 
-    - name: Package layer using Python (no zip needed)
-      shell: bash
+    - name: Package layer using Python
       run: |
-        cd /github/workspace/layer
+        cd $GITHUB_WORKSPACE/layer
         /opt/python/cp312-cp312/bin/python -c "
         import zipfile, os
-        with zipfile.ZipFile('/github/workspace/layer.zip', 'w', zipfile.ZIP_DEFLATED) as zf:
+        with zipfile.ZipFile('$GITHUB_WORKSPACE/layer.zip', 'w', zipfile.ZIP_DEFLATED) as zf:
             for root, dirs, files in os.walk('python'):
                 for file in files:
                     full = os.path.join(root, file)
                     zf.write(full, full)
         "
-        ls -lh /github/workspace/layer.zip
+        ls -lh $GITHUB_WORKSPACE/layer.zip
 
     - name: Upload layer artifact
       uses: actions/upload-artifact@v4
       with:
         name: fc-gemma-layer
-        path: layer.zip
+        path: ${{ github.workspace }}/layer.zip
         retention-days: 7
